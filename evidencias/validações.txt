@@ -1,0 +1,5 @@
+vallidação incorreta: https://github.com/mateusreis2509-ship-it/2bim-Avalia1/actions/runs/38410593666/job/115341565621
+validação correta: https://github.com/mateusreis2509-ship-it/2bim-Avalia1/actions/runs/38411148720/job/115343499768
+justificativa: A migração é testada em SQLite antes de chegar ao D1 para identificar erros de sintaxe antes de aplicar alterações ao banco de dados remoto.
+
+link do PR: https://github.com/mateusreis2509-ship-it/2bim-Avalia1/pull/1

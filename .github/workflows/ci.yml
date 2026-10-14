@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixa o repositório
+        uses: actions/checkout@v6
+
+      - name: Instala SQLite
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+      - name: Procura segredos versionados
+        run: |
+          if git grep -nE 'GOCSPX-|client_secret' -- . ':!*.md' ':!.github/workflows/ci.yml'; then
+            echo "::error::Possivel segredo no repositorio"
+            exit 1
+          fi
+
+      - name: Aplica as migracoes D1 em um SQLite local
+        run: |
+          set -e
+          for f in migrations/*.sql; do
+            echo "Aplicando $f"
+            sqlite3 teste.db < "$f"
+          done
+          sqlite3 teste.db ".tables"
+
+      - name: Valida HTML
+        run: npx --yes htmlhint "**/*.html"

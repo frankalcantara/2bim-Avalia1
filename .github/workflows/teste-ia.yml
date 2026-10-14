@@ -1,0 +1,29 @@
+permissions:
+  models: read
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Testa a IA
+        id: ia
+        uses: actions/ai-inference@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "Responda somente com a frase: TESTE FUNCIONOU"
+
+      - name: Valida a resposta
+        env:
+          RESPOSTA: ${{ steps.ia.outputs.response }}
+        shell: bash
+        run: |
+          echo "Resposta recebida:"
+          printf '%s\n' "$RESPOSTA"
+
+          if [[ "$RESPOSTA" != *"TESTE FUNCIONOU"* ]]; then
+            echo "::error::A resposta não corresponde ao teste esperado."
+            exit 1
+          fi
+
+          echo "Teste de IA concluído com sucesso."

@@ -1,0 +1,21 @@
+      echo '```diff'
+            git diff "origin/${{ github.base_ref }}"...HEAD | head -c 20000
+            echo '```'
+          } > prompt.txt
+
+      - name: Revisa o código com IA
+        id: ia
+        uses: actions/ai-inference@v1
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
+        with:
+          prompt-file: prompt.txt
+          system-prompt: Você é um revisor de código objetivo.
+
+      - name: Comenta no PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" \
+            --body-file "${{ steps.ia.outputs.response-file }}"
