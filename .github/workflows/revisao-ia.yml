@@ -1,0 +1,84 @@
+name: revisao-ia
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixa o repositorio
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Instala Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Monta o prompt
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch origin "$BASE_REF"
+
+          {
+            echo "Revise o diff de um site com Cloudflare Pages Functions e D1."
+            echo "Responda em portugues, em ate 10 itens."
+            echo "Procure segredos expostos, SQL inseguro,"
+            echo "uso de concatenacao SQL em vez de prepare().bind(),"
+            echo "erros de logica e vulnerabilidades."
+            echo "Explique os problemas encontrados e sugira correcoes."
+            echo "Se nao encontrar problemas, diga isso claramente."
+            echo
+            echo '```diff'
+            git diff "origin/$BASE_REF...$PR_HEAD_SHA" | head -c 20000
+            echo
+            echo '```'
+          } > prompt.txt
+
+      - name: Revisa o codigo com IA
+        id: ia
+        uses: actions/ai-inference@v3
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
+        with:
+          token: ${{ secrets.COPILOT_PAT }}
+          prompt-file: prompt.txt
+          model: auto
+          system-prompt: "Voce e um revisor de codigo objetivo. Responda em portugues."
+
+      - name: Verifica a resposta da IA
+        env:
+          RESPOSTA: ${{ steps.ia.outputs.response-file }}
+        run: |
+          if [ -z "$RESPOSTA" ] || [ ! -f "$RESPOSTA" ]; then
+            echo "::error::A resposta da IA nao foi encontrada."
+            exit 1
+          fi
+
+          if [ ! -s "$RESPOSTA" ]; then
+            echo "::error::A resposta da IA esta vazia."
+            exit 1
+          fi
+
+      - name: Comenta no pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESPOSTA: ${{ steps.ia.outputs.response-file }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body-file "$RESPOSTA"
